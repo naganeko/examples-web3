@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>honor guard</title>
+  <script src="https://code.jquery.com/jquery-3.6.4.min.js"
+          integrity="sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8=" crossorigin="anonymous"></script>
+
+  <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.5.1/pixi.min.js"></script>-->
+  <script src="js/pixi.js"></script>
+  <script src="js/pixi-spine.js"></script>
+  <script src="js/skb.js"></script>
+  <script src="js/charm.js"></script>
+
+
+  <!-- read this loader.js if you want to know how to load skel binary file into memory -->
+  <script src="js/loader.js"></script>
+
+</head>
+<style>
+  body {
+    font-size: 12px;
+  }
+
+  div {
+    background: transparent;
+  }
+
+  tr {
+    margin: 0px;
+    padding: 0px;
+  }
+
+  td {
+    margin: 0px;
+    padding: 0px;
+    border: 1px dashed gray;
+  }
+
+
+</style>
+<!--<body style="background: #FFF;margin: 20px;">-->
+<body style="background: rgba(0,0,0,0.0); margin: 0px;">
+<!--少女前線-->
+
+<!--<div style="border: 1px solid black; padding: 10px; margin:10px;">-->
+
+<div class="pixi" style=""></div>
+<div style="padding:5px;">
+  <button class="button" style="padding:10px 20px 10px 20px" id="fireBtn"> play </button>
+</div>
+
+<!--</div>-->
+
+
+<script>
+
+  var animations = null;
+  var rawSkeletonDataHolder = null;
+
+  var dolls = new Array();
+  var game_over = false;
+  var running = true;
+
+  var debugV;
+
+  var canvas_w = 1024;
+  var canvas_h = 600;
+  const BG_COLOR = 0x8FBC8F;
+
+  var app;
+  var stage;
+  var charm;
+
+  var car = null;
+  var grz = null;
+  var sat8 = null;
+  var vz61 = null;
+  var m950a = null;
+
+  var distance = 0;
+  var frame_count = 0;
+
+
+  $(function () {
+    window.setTimeout(function () {
+      setup();
+    }, 100);
+
+  });
+
+
+  var sc = 1.0;
+
+  function setup() {
+
+    app = new PIXI.Application(canvas_w, canvas_h, {backgroundColor: BG_COLOR, transparent: false});
+    $(".pixi").append(app.view);
+
+    stage = app.stage;
+    charm = new Charm(PIXI);
+
+    pixiSpineView(0);
+
+    function pixiSpineView(skin) {
+      if (skin == 0) {
+        skin = "";
+      } else {
+        skin = "_" + skin;
+      }
+      if (stage.children.length > 0) {
+        for (var i = app.stage.children.length - 1; i >= 0; i--) {
+          stage.removeChild(app.stage.children[i]);
+        }
+        ;
+      }
+
+      var loader = new PIXI.loaders.Loader();
+
+      t_car = "Carcano1891";
+      t_sat8 = "SAT8";
+      t_vz61 = "VZ61";
+      t_m950a = "M950A";
+      t_grz = "Grizzly_105";
+
+      var w = app.renderer.width;
+      var h = app.renderer.height;
+
+      addData(loader, t_car, "Carcano1891");
+      addData(loader, t_sat8, "S.A.T.8");
+      addData(loader, t_vz61, "VZ61");
+      addData(loader, t_m950a, "M950A");
+      addData(loader, t_grz, "Grizzly");
+
+      sc = 1.0;
+
+      loader.load(function (loader, resources) {
+
+        var car_skel = genSkel(loader, resources, t_car);
+        var sat8_skel = genSkel(loader, resources, t_sat8);
+        var vz61_skel = genSkel(loader, resources, t_vz61);
+        var m950a_skel = genSkel(loader, resources, t_m950a);
+        var grz_skel = genSkel(loader, resources, t_grz);
+
+
+        car = genDoll(car_skel, "attack");
+        sat8 = genDoll(sat8_skel, "attack");
+        vz61 = genDoll(vz61_skel, "attack");
+        m950a = genDoll(m950a_skel, "attack");
+        grz = genDoll(grz_skel, "attack");
+
+        var x2 = canvas_w * 0.3;
+        var y2 = canvas_h * 0.75;
+
+        dolls.forEach((d, i) => {
+          d.y = y2;
+          d.x = canvas_w / 2 + (i - 2) * 170;
+          // d.state.timeScale = 1.3;
+          // d.scale.set(1.5)
+          d.state.setAnimationByName(0, "wait", true);
+
+        });
+
+
+        $("#fireBtn").click(onTouchStart);
+
+        // setInterval(()=> {
+        //   onTouchStart();
+        // },7000);
+
+        function onTouchStart(ev) {
+          ev.target.blur();
+          dolls.forEach((d, i) => {
+            d.state.addAnimationByName(0, "wait", true, 0);
+          });
+          setTimeout(() => {
+            dolls.forEach((d, i) => {
+              d.state.setAnimationByName(0, "victory", false);
+              d.state.addAnimationByName(0, "victoryloop", true, 0);
+            });
+          }, 500);
+        }
+
+        gameLoop();
+
+        function gameLoop() {
+          requestAnimationFrame(gameLoop);
+          charm.update();
+        }
+
+      });
+
+
+    }
+
+
+  }
+
+
+  /*
+  Spine class modification to append some proerties : phy ax xy vx vy
+   */
+
+  function genDoll(skel, action = "wait", looping = true) {
+    var actor = new PIXI.spine.Spine(skel);
+    // var actor = new TDoll(skel);
+    actor.scale.set(sc);
+    // actor.state.timeScale = 1.0;
+    actor.state.setAnimationByName(0, action, looping);
+    // resetPosAndSpeed(actor);
+    stage.addChild(actor);
+    dolls.push(actor);
+    return actor;
+  }
+
+
+</script>
+
+</body>
+</html>
